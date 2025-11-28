@@ -54,9 +54,24 @@ function getQuestionsFromData(data) {
 // PRETEST
 async function loadPretest() {
   const data = await loadJSON(PRE_PATH);
-  const container = document.getElementById("data/pretest.json");
+  console.log("loadPretest: data =", data); // bantu debug struktur JSON
+
+  // Gunakan id elemen container 'pretest' (bukan path file)
+  const container = document.getElementById("pretest");
+  if (!container) {
+    console.error("Element container dengan id 'pretest' tidak ditemukan di DOM.");
+    return;
+  }
+
   preQuestions = getQuestionsFromData(data);
   pretestCount = preQuestions.length;
+
+  if (!preQuestions.length) {
+    container.innerHTML = "<p>Data pretest kosong atau format JSON tidak sesuai.</p>";
+    return;
+  }
+
+  // Bersihkan isi container sebelum menambahkan
   container.innerHTML = "<h3>Pre-Test</h3>";
 
   preQuestions.forEach((q, i) => {
@@ -69,6 +84,10 @@ async function loadPretest() {
     });
     container.appendChild(div);
   });
+
+  // Hapus tombol lama jika ada (mencegah duplikat saat reload)
+  const existingBtn = document.getElementById("btn-submit-pre");
+  if (existingBtn) existingBtn.remove();
 
   const btn = document.createElement("button");
   btn.id = "btn-submit-pre";
@@ -143,6 +162,9 @@ async function loadPosttest() {
     });
     container.appendChild(div);
   });
+
+  const existingBtn = document.getElementById("btn-submit-post");
+  if (existingBtn) existingBtn.remove();
 
   const btn = document.createElement("button");
   btn.id = "btn-submit-post";
@@ -220,5 +242,3 @@ window.addEventListener("DOMContentLoaded", () => {
   loadPosttest();
   showSection("pretest");
 });
-
-
