@@ -54,7 +54,7 @@ function getQuestionsFromData(data) {
 // PRETEST
 async function loadPretest() {
   const data = await loadJSON(PRE_PATH);
-  const container = document.getElementById("pretest");
+  const container = document.getElementById("pretest.json");
   preQuestions = getQuestionsFromData(data);
   pretestCount = preQuestions.length;
   container.innerHTML = "<h3>Pre-Test</h3>";
@@ -220,3 +220,4 @@ window.addEventListener("DOMContentLoaded", () => {
   loadPosttest();
   showSection("pretest");
 });
+
