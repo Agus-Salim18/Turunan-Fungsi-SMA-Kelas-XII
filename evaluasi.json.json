@@ -1,5 +1,0 @@
-[
-  { "min": 10, "max": 19, "message": "Kamu sudah mencapai peningkatan minimal! Terus tingkatkan latihanmu." },
-  { "min": 20, "max": 40, "message": "Hebat! Peningkatan signifikan, pertahankan prestasimu." },
-  { "min": 41, "max": 100, "message": "Luar biasa! Kamu telah menguasai materi turunan fungsi dengan sangat baik." }
-]
