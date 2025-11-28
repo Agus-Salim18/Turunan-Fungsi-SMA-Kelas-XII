@@ -1,222 +1,295 @@
-// Versi yang lebih toleran terhadap variasi struktur JSON dan memperbaiki path submit
-let pretestScore = 0;
-let posttestScore = 0;
-let pretestCount = 0;
-let posttestCount = 0;
-let wrongAnswers = [];
+// script.js - simple single-page logic for the ITS Turunan Fungsi
+// Data: questions and materi are embedded for offline use
 
-let preQuestions = [];
-let postQuestions = [];
+const pretestQuestions = [
+  {
+    id: 1,
+    q: "Turunan dari f(x) = x^3 adalah...",
+    choices: ["3x^2", "x^2", "3x^3", "2x"],
+    answer: 0
+  },
+  {
+    id: 2,
+    q: "Turunan dari f(x) = 5x adalah...",
+    choices: ["5", "x", "0", "1"],
+    answer: 0
+  },
+  {
+    id: 3,
+    q: "Turunan dari f(x) = sin(x) adalah...",
+    choices: ["cos(x)", "-cos(x)", "sin(x)", "-sin(x)"],
+    answer: 0
+  },
+  {
+    id: 4,
+    q: "Turunan dari f(x) = e^x adalah...",
+    choices: ["e^x", "x e^{x-1}", "e^{x-1}", "1"],
+    answer: 0
+  },
+  {
+    id: 5,
+    q: "Turunan dari f(x) = x^2 + 3x adalah...",
+    choices: ["2x + 3", "x^2 + 3", "2x", "3x^2 + 3"],
+    answer: 0
+  }
+];
 
-const PRE_PATH = "data/pretest.json";
-const POST_PATH = "data/posttest.json";
-const MATERI_PATH = "data/materi.json";
-const EVAL_PATH = "data/evaluasi.json";
+const posttestQuestions = [
+  {
+    id: 1,
+    q: "Turunan dari f(x) = (3x^2 + 2x) adalah...",
+    choices: ["6x + 2", "3x + 2", "6x^2 + 2", "3x^2 + 2x"],
+    answer: 0
+  },
+  {
+    id: 2,
+    q: "Jika f(x) = ln(x), maka f'(x) = ...",
+    choices: ["1/x", "x", "ln(x)", "e^x"],
+    answer: 0
+  },
+  {
+    id: 3,
+    q: "Turunan dari f(x) = 7 adalah...",
+    choices: ["0", "7", "1", "7x"],
+    answer: 0
+  },
+  {
+    id: 4,
+    q: "Jika f(x) = x^4, f'(x) = ...",
+    choices: ["4x^3", "x^3", "4x^4", "x^4"],
+    answer: 0
+  },
+  {
+    id: 5,
+    q: "Turunan dari f(x) = cos(x) adalah...",
+    choices: ["-sin(x)", "sin(x)", "cos(x)", "-cos(x)"],
+    answer: 0
+  }
+];
 
-function showSection(id) {
-  document.querySelectorAll(".content-section").forEach(s => s.style.display = "none");
-  const el = document.getElementById(id);
-  if (el) el.style.display = "block";
+const materiContent = `
+<h3 class="section-title">Materi: Aturan-aturan Turunan</h3>
+<div class="card">
+  <h4>1. Aturan pangkat</h4>
+  <p>Jika f(x) = x^n, maka f'(x) = n x^{n-1}.</p>
+  <p>Contoh: (x^3)' = 3x^2</p>
+</div>
+
+<div class="card">
+  <h4>2. Aturan konstanta</h4>
+  <p>Jika f(x) = c (konstanta), maka f'(x) = 0.</p>
+</div>
+
+<div class="card">
+  <h4>3. Aturan konstanta kali fungsi</h4>
+  <p>(c * f(x))' = c * f'(x)</p>
+</div>
+
+<div class="card">
+  <h4>4. Aturan jumlah</h4>
+  <p>(f + g)' = f' + g'</p>
+</div>
+
+<div class="card">
+  <h4>5. Turunan fungsi trigonometrik dasar</h4>
+  <ul>
+    <li>(sin x)' = cos x</li>
+    <li>(cos x)' = -sin x</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h4>Contoh soal singkat</h4>
+  <p>Hitung turunan dari f(x) = 2x^3 - 5x + 7.</p>
+  <p>Jawab: f'(x) = 6x^2 - 5</p>
+</div>
+`;
+
+// Utility: show a section and populate if empty
+function showSection(id){
+  const sections = document.querySelectorAll('.content-section');
+  sections.forEach(s => s.classList.remove('active'));
+  const sec = document.getElementById(id);
+  if(!sec) return;
+  sec.classList.add('active');
+
+  if(id === 'pretest' && sec.innerHTML.trim() === ''){
+    renderQuiz(sec, pretestQuestions, { title: 'Pre-Test', storageKey: 'pretest' });
+  } else if(id === 'materi' && sec.innerHTML.trim() === ''){
+    sec.innerHTML = materiContent;
+  } else if(id === 'posttest' && sec.innerHTML.trim() === ''){
+    renderQuiz(sec, posttestQuestions, { title: 'Post-Test', storageKey: 'posttest' });
+  } else if(id === 'evaluasi' && sec.innerHTML.trim() === ''){
+    renderEvaluation(sec);
+  }
 }
 
-async function loadJSON(file) {
+// Render quiz in a given container
+function renderQuiz(container, questions, opts = {}){
+  const { title = 'Quiz', storageKey = null } = opts;
+  container.innerHTML = `<h3 class="section-title">${title}</h3>`;
+  const form = document.createElement('div');
+
+  questions.forEach((q, idx) => {
+    const qDiv = document.createElement('div');
+    qDiv.className = 'question';
+    qDiv.innerHTML = `<strong>${idx + 1}. ${q.q}</strong>`;
+    const answersDiv = document.createElement('div');
+    answersDiv.className = 'answers';
+
+    q.choices.forEach((choice, cidx) => {
+      const id = `q${q.id}_c${cidx}_${storageKey || 'tmp'}`;
+      const label = document.createElement('label');
+      label.innerHTML = `<input type="radio" name="q${q.id}" value="${cidx}" id="${id}"> <span>${choice}</span>`;
+      answersDiv.appendChild(label);
+    });
+
+    qDiv.appendChild(answersDiv);
+    form.appendChild(qDiv);
+  });
+
+  const actions = document.createElement('div');
+  actions.className = 'actions';
+  const submitBtn = document.createElement('button');
+  submitBtn.className = 'btn';
+  submitBtn.textContent = 'Kirim Jawaban';
+  submitBtn.onclick = () => {
+    const answers = {};
+    questions.forEach(q => {
+      const ele = form.querySelector(`input[name="q${q.id}"]:checked`);
+      answers[q.id] = ele ? Number(ele.value) : null;
+    });
+    const result = grade(questions, answers);
+    showResult(container, result);
+    if(storageKey) {
+      saveAttempt(storageKey, { questionsCount: questions.length, correct: result.correct, timestamp: new Date().toISOString() });
+    }
+  };
+
+  const resetBtn = document.createElement('button');
+  resetBtn.className = 'btn secondary';
+  resetBtn.textContent = 'Reset';
+  resetBtn.onclick = () => {
+    form.querySelectorAll('input[type="radio"]').forEach(i => i.checked = false);
+    container.querySelectorAll('.result').forEach(r => r.remove());
+  };
+
+  actions.appendChild(submitBtn);
+  actions.appendChild(resetBtn);
+
+  container.appendChild(form);
+  container.appendChild(actions);
+
+  // If there's a saved attempt, show a brief note
+  if(storageKey){
+    const prev = getSavedAttempt(storageKey);
+    if(prev){
+      const note = document.createElement('div');
+      note.className = 'card';
+      note.innerHTML = `<strong>Catatan:</strong> Terdapat hasil sebelumnya. Skor terakhir: ${prev.correct}/${prev.questionsCount} (${new Date(prev.timestamp).toLocaleString()})`;
+      container.insertBefore(note, form);
+    }
+  }
+}
+
+// Grade function returns stats and per-question feedback
+function grade(questions, answers){
+  let correct = 0;
+  const per = questions.map(q => {
+    const sel = answers[q.id];
+    const ok = sel === q.answer;
+    if(ok) correct++;
+    return { id: q.id, selected: sel, correct: q.answer, ok };
+  });
+  return { correct, total: questions.length, per };
+}
+
+function showResult(container, result){
+  // Remove old result
+  container.querySelectorAll('.result').forEach(r => r.remove());
+  const ratio = result.correct / result.total;
+  const resDiv = document.createElement('div');
+  let cls = 'result ';
+  if(ratio >= 0.8) cls += 'success';
+  else if(ratio >= 0.5) cls += 'warn';
+  else cls += 'fail';
+
+  resDiv.className = cls;
+  resDiv.innerHTML = `<strong>Hasil:</strong> ${result.correct} dari ${result.total} benar.`;
+  // optionally list incorrects
+  const wrongs = result.per.filter(p => !p.ok);
+  if(wrongs.length){
+    const ul = document.createElement('ul');
+    wrongs.forEach(w => {
+      ul.innerHTML += `<li>Soal ${w.id}: jawaban benar = pilihan ke-${w.correct + 1}</li>`;
+    });
+    resDiv.appendChild(ul);
+  } else {
+    resDiv.innerHTML += `<p>Semua benar. Bagus!</p>`;
+  }
+  container.appendChild(resDiv);
+}
+
+// Simple localStorage save/load
+function saveAttempt(key, payload){
   try {
-    const response = await fetch(file);
-    if (!response.ok) throw new Error(`Gagal memuat ${file}: ${response.status}`);
-    return await response.json();
-  } catch (err) {
-    console.error(err);
+    const store = JSON.parse(localStorage.getItem('its_attempts') || '{}');
+    store[key] = payload;
+    localStorage.setItem('its_attempts', JSON.stringify(store));
+  } catch (e) {
+    console.warn('Tidak bisa menyimpan ke localStorage', e);
+  }
+}
+
+function getSavedAttempt(key){
+  try {
+    const store = JSON.parse(localStorage.getItem('its_attempts') || '{}');
+    return store[key] || null;
+  } catch (e) {
     return null;
   }
 }
 
-function normalizeQuestionItem(q) {
-  // normalisasi beberapa variasi nama properti dari JSON yang ada di repo
-  return {
-    question: q.question || q.pertanyaan || q.soal || "",
-    options: q.options || q.opsi || q.ops || [],
-    answer: q.answer || q.jawaban || q.jawabanBenar || "",
-    pembahasan: q.pembahasan || q.pembahasanJawaban || ""
-  };
-}
-
-function getQuestionsFromData(data) {
-  if (!data) return [];
-  if (Array.isArray(data)) {
-    return data.map(normalizeQuestionItem);
-  }
-  if (data.questions) return data.questions.map(normalizeQuestionItem);
-  if (data.pretest) return data.pretest.map(normalizeQuestionItem);
-  if (data.posttest) return data.posttest.map(normalizeQuestionItem);
-  return [];
-}
-
-// PRETEST
-async function loadPretest() {
-  const data = await loadJSON(PRE_PATH);
-  const container = document.getElementById("pretest");
-  preQuestions = getQuestionsFromData(data);
-  pretestCount = preQuestions.length;
-  container.innerHTML = "<h3>Pre-Test</h3>";
-
-  preQuestions.forEach((q, i) => {
-    const div = document.createElement("div");
-    div.className = "question";
-    div.innerHTML = `<b>${i + 1}. ${q.question}</b><br>`;
-    q.options.forEach((opt, idx) => {
-      const id = `pre-${i}-${idx}`;
-      div.innerHTML += `<label for='${id}'><input id='${id}' type='radio' name='pre${i}' value='${opt}'> ${opt}</label><br>`;
-    });
-    container.appendChild(div);
-  });
-
-  const btn = document.createElement("button");
-  btn.id = "btn-submit-pre";
-  btn.textContent = "Kirim Jawaban";
-  btn.addEventListener("click", submitPretest);
-  container.appendChild(btn);
-}
-
-function submitPretest() {
-  if (!preQuestions.length) {
-    alert("Data pretest tidak ditemukan atau belum dimuat dengan benar.");
+function renderEvaluation(container){
+  container.innerHTML = `<h3 class="section-title">Penilaian</h3>`;
+  const attempts = JSON.parse(localStorage.getItem('its_attempts') || '{}');
+  if(!attempts || Object.keys(attempts).length === 0){
+    container.innerHTML += `<div class="card">Belum ada penilaian. Lakukan Pre-Test dan Post-Test terlebih dahulu.</div>`;
     return;
   }
-  pretestScore = 0;
-  preQuestions.forEach((q, i) => {
-    const selected = document.querySelector(`input[name='pre${i}']:checked`);
-    if (selected && q.answer && selected.value === q.answer) pretestScore++;
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `<h4>Ringkasan Hasil</h4>`;
+  const list = document.createElement('ul');
+  Object.entries(attempts).forEach(([k,v]) => {
+    list.innerHTML += `<li><strong>${k}</strong> — ${v.correct}/${v.questionsCount} (terakhir: ${new Date(v.timestamp).toLocaleString()})</li>`;
   });
-  // Jika jawaban tidak tersedia di JSON, beri peringatan
-  const missingAnswers = preQuestions.filter(q => !q.answer).length;
-  if (missingAnswers) {
-    alert(`Skor Pre-Test: ${pretestScore}/${preQuestions.length}\nCatatan: ${missingAnswers} soal tidak memiliki jawaban di file JSON, penilaian mungkin tidak lengkap.`);
-  } else {
-    alert(`Skor Pre-Test kamu: ${pretestScore}/${preQuestions.length}`);
-  }
-}
+  card.appendChild(list);
 
-// MATERI
-async function loadMateri() {
-  const data = await loadJSON(MATERI_PATH);
-  const container = document.getElementById("materi");
-  if (!data) {
-    container.innerHTML = "<p>Materi tidak dapat dimuat.</p>";
-    return;
-  }
-
-  let html = `<h2>${data.title || "Materi"}</h2><p>${data.content || ""}</p>`;
-
-  (data.sections || []).forEach(section => {
-    html += `<div class='question'>
-      <h4>${section.judul || ""}</h4>
-      <p>${(section.isi || "").replace(/\n/g, "<br>")}</p>
-    </div>`;
-  });
-
-  html += "<h3>Contoh Soal:</h3>";
-  (data.examples || []).forEach((e, i) => {
-    html += `<div class='question'>
-      <b>${i + 1}. ${e.soal || ""}</b><br>
-      <i>Penyelesaian:</i> ${(e.jawaban || "").replace(/\n/g, "<br>")}
-    </div>`;
-  });
-
-  container.innerHTML = html;
-}
-
-// POSTTEST
-async function loadPosttest() {
-  const data = await loadJSON(POST_PATH);
-  const container = document.getElementById("posttest");
-  postQuestions = getQuestionsFromData(data);
-  posttestCount = postQuestions.length;
-  container.innerHTML = "<h3>Post-Test</h3>";
-
-  postQuestions.forEach((q, i) => {
-    const div = document.createElement("div");
-    div.className = "question";
-    div.innerHTML = `<b>${i + 1}. ${q.question}</b><br>`;
-    q.options.forEach((opt, idx) => {
-      const id = `post-${i}-${idx}`;
-      div.innerHTML += `<label for='${id}'><input id='${id}' type='radio' name='post${i}' value='${opt}'> ${opt}</label><br>`;
-    });
-    container.appendChild(div);
-  });
-
-  const btn = document.createElement("button");
-  btn.id = "btn-submit-post";
-  btn.textContent = "Kirim Jawaban";
-  btn.addEventListener("click", submitPosttest);
-  container.appendChild(btn);
-}
-
-async function submitPosttest() {
-  if (!postQuestions.length) {
-    alert("Data posttest tidak ditemukan atau belum dimuat dengan benar.");
-    return;
-  }
-  posttestScore = 0;
-  wrongAnswers = [];
-
-  postQuestions.forEach((q, i) => {
-    const selected = document.querySelector(`input[name='post${i}']:checked`);
-    if (selected && q.answer && selected.value === q.answer) {
-      posttestScore++;
+  // Compute simple improvement if both pretest & posttest exist
+  if(attempts.pretest && attempts.posttest){
+    const pre = attempts.pretest.correct / attempts.pretest.questionsCount;
+    const post = attempts.posttest.correct / attempts.posttest.questionsCount;
+    const diff = Math.round((post - pre) * 100);
+    const note = document.createElement('div');
+    note.style.marginTop = '10px';
+    if(diff > 0){
+      note.className = 'result success';
+      note.innerHTML = `<strong>Peningkatan:</strong> skor naik ${diff} poin persentase (Pre → Post).`;
+    } else if(diff === 0){
+      note.className = 'result warn';
+      note.innerHTML = `<strong>Performa:</strong> tidak ada perubahan antara Pre dan Post test.`;
     } else {
-      wrongAnswers.push({
-        soal: q.question,
-        pembahasan: q.pembahasan || "Pembahasan tidak tersedia",
-        jawabanBenar: q.answer || "Tidak tersedia"
-      });
+      note.className = 'result fail';
+      note.innerHTML = `<strong>Penurunan:</strong> skor turun ${Math.abs(diff)} poin persentase (Pre → Post).`;
     }
-  });
-
-  const prePercent = pretestCount ? (pretestScore / pretestCount) * 100 : 0;
-  const postPercent = posttestCount ? (posttestScore / posttestCount) * 100 : 0;
-  const peningkatan = postPercent - prePercent;
-
-  alert(`Pre-Test: ${prePercent.toFixed(1)}%\nPost-Test: ${postPercent.toFixed(1)}%\nPeningkatan: ${peningkatan.toFixed(1)}%`);
-
-  showSection("evaluasi");
-  evaluasi(peningkatan);
-}
-
-// EVALUASI ADAPTIF
-async function evaluasi(peningkatan) {
-  const data = await loadJSON(EVAL_PATH);
-  const container = document.getElementById("evaluasi");
-
-  if (peningkatan < 10) {
-    container.innerHTML = `<h3>Belum Mencapai Peningkatan 10%</h3>
-    <p>Kamu perlu mempelajari kembali soal-soal berikut:</p>`;
-    wrongAnswers.forEach((item, i) => {
-      container.innerHTML += `
-        <div class='question'>
-          <b>${i + 1}. ${item.soal}</b><br>
-          <i>Jawaban benar:</i> ${item.jawabanBenar}<br>
-          <i>Pembahasan:</i> ${item.pembahasan}
-        </div>`;
-    });
-    const btn = document.createElement("button");
-    btn.textContent = "Ulangi Post-Test";
-    btn.addEventListener("click", () => {
-      loadPosttest().then(() => showSection("posttest"));
-    });
-    container.appendChild(btn);
-  } else {
-    const feedbackArr = data || [];
-    const feedback = (Array.isArray(feedbackArr) ? feedbackArr : (feedbackArr.items || [])).find(e => peningkatan >= (e.min || 0) && peningkatan <= (e.max || 100));
-    container.innerHTML = `
-      <h3>Evaluasi Hasil Belajar</h3>
-      <p>Peningkatan skor: ${peningkatan.toFixed(1)}%</p>
-      <p><b>${feedback ? feedback.message : "Selamat, kamu sudah mencapai peningkatan yang baik!"}</b></p>`;
+    card.appendChild(note);
   }
+
+  container.appendChild(card);
 }
 
-window.addEventListener("DOMContentLoaded", () => {
-  loadPretest();
-  loadMateri();
-  loadPosttest();
-  showSection("pretest");
+// Initial load: show pretest
+window.addEventListener('DOMContentLoaded', () => {
+  showSection('pretest');
 });
