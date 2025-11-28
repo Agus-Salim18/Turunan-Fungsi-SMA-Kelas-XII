@@ -18,7 +18,7 @@ async function loadJSON(file) {
 
 // PRE-TEST
 async function loadPretest() {
-  const data = await loadJSON("pretest.json");
+  const data = await loadJSON("data/pretest.json");
   const container = document.getElementById("pretest");
   pretestCount = data.questions.length;
   container.innerHTML = "<h3>Pre-Test</h3>";
@@ -48,7 +48,7 @@ function submitPretest() {
 
 // MATERI
 async function loadMateri() {
-  const data = await loadJSON("materi.json");
+  const data = await loadJSON("data/materi.json");
   const container = document.getElementById("materi");
 
   let html = `<h2>${data.title}</h2><p>${data.content}</p>`;
@@ -74,7 +74,7 @@ async function loadMateri() {
 
 // POST-TEST
 async function loadPosttest() {
-  const data = await loadJSON("posttest.json");
+  const data = await loadJSON("data/posttest.json");
   const container = document.getElementById("posttest");
   posttestCount = data.questions.length;
   container.innerHTML = "<h3>Post-Test</h3>";
@@ -154,3 +154,4 @@ window.onload = () => {
   loadPosttest();
   showSection("pretest");
 };
+
