@@ -1,116 +1,179 @@
+// Versi yang lebih toleran terhadap variasi struktur JSON dan memperbaiki path submit
 let pretestScore = 0;
 let posttestScore = 0;
 let pretestCount = 0;
 let posttestCount = 0;
 let wrongAnswers = [];
 
-// Tampilkan section
+let preQuestions = [];
+let postQuestions = [];
+
+const PRE_PATH = "data/pretest.json";
+const POST_PATH = "data/posttest.json";
+const MATERI_PATH = "data/materi.json";
+const EVAL_PATH = "data/evaluasi.json";
+
 function showSection(id) {
   document.querySelectorAll(".content-section").forEach(s => s.style.display = "none");
-  document.getElementById(id).style.display = "block";
+  const el = document.getElementById(id);
+  if (el) el.style.display = "block";
 }
 
-// Ambil file JSON
 async function loadJSON(file) {
-  const response = await fetch(file);
-  return await response.json();
+  try {
+    const response = await fetch(file);
+    if (!response.ok) throw new Error(`Gagal memuat ${file}: ${response.status}`);
+    return await response.json();
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
 }
 
-// PRE-TEST
+function normalizeQuestionItem(q) {
+  // normalisasi beberapa variasi nama properti dari JSON yang ada di repo
+  return {
+    question: q.question || q.pertanyaan || q.soal || "",
+    options: q.options || q.opsi || q.ops || [],
+    answer: q.answer || q.jawaban || q.jawabanBenar || "",
+    pembahasan: q.pembahasan || q.pembahasanJawaban || ""
+  };
+}
+
+function getQuestionsFromData(data) {
+  if (!data) return [];
+  if (Array.isArray(data)) {
+    return data.map(normalizeQuestionItem);
+  }
+  if (data.questions) return data.questions.map(normalizeQuestionItem);
+  if (data.pretest) return data.pretest.map(normalizeQuestionItem);
+  if (data.posttest) return data.posttest.map(normalizeQuestionItem);
+  return [];
+}
+
+// PRETEST
 async function loadPretest() {
-  const data = await loadJSON("data/pretest.json");
+  const data = await loadJSON(PRE_PATH);
   const container = document.getElementById("pretest");
-  pretestCount = data.questions.length;
+  preQuestions = getQuestionsFromData(data);
+  pretestCount = preQuestions.length;
   container.innerHTML = "<h3>Pre-Test</h3>";
 
-  data.questions.forEach((q, i) => {
+  preQuestions.forEach((q, i) => {
     const div = document.createElement("div");
     div.className = "question";
     div.innerHTML = `<b>${i + 1}. ${q.question}</b><br>`;
-    q.options.forEach(opt => {
-      div.innerHTML += `<label><input type='radio' name='pre${i}' value='${opt}'> ${opt}</label><br>`;
+    q.options.forEach((opt, idx) => {
+      const id = `pre-${i}-${idx}`;
+      div.innerHTML += `<label for='${id}'><input id='${id}' type='radio' name='pre${i}' value='${opt}'> ${opt}</label><br>`;
     });
     container.appendChild(div);
   });
-  container.innerHTML += "<button onclick='submitPretest()'>Kirim Jawaban</button>";
+
+  const btn = document.createElement("button");
+  btn.id = "btn-submit-pre";
+  btn.textContent = "Kirim Jawaban";
+  btn.addEventListener("click", submitPretest);
+  container.appendChild(btn);
 }
 
 function submitPretest() {
-  loadJSON("pretest.json").then(data => {
-    pretestScore = 0;
-    data.questions.forEach((q, i) => {
-      const selected = document.querySelector(`input[name='pre${i}']:checked`);
-      if (selected && selected.value === q.answer) pretestScore++;
-    });
-    alert(`Skor Pre-Test kamu: ${pretestScore}/${data.questions.length}`);
+  if (!preQuestions.length) {
+    alert("Data pretest tidak ditemukan atau belum dimuat dengan benar.");
+    return;
+  }
+  pretestScore = 0;
+  preQuestions.forEach((q, i) => {
+    const selected = document.querySelector(`input[name='pre${i}']:checked`);
+    if (selected && q.answer && selected.value === q.answer) pretestScore++;
   });
+  // Jika jawaban tidak tersedia di JSON, beri peringatan
+  const missingAnswers = preQuestions.filter(q => !q.answer).length;
+  if (missingAnswers) {
+    alert(`Skor Pre-Test: ${pretestScore}/${preQuestions.length}\nCatatan: ${missingAnswers} soal tidak memiliki jawaban di file JSON, penilaian mungkin tidak lengkap.`);
+  } else {
+    alert(`Skor Pre-Test kamu: ${pretestScore}/${preQuestions.length}`);
+  }
 }
 
 // MATERI
 async function loadMateri() {
-  const data = await loadJSON("data/materi.json");
+  const data = await loadJSON(MATERI_PATH);
   const container = document.getElementById("materi");
+  if (!data) {
+    container.innerHTML = "<p>Materi tidak dapat dimuat.</p>";
+    return;
+  }
 
-  let html = `<h2>${data.title}</h2><p>${data.content}</p>`;
+  let html = `<h2>${data.title || "Materi"}</h2><p>${data.content || ""}</p>`;
 
-  data.sections.forEach(section => {
+  (data.sections || []).forEach(section => {
     html += `<div class='question'>
-      <h4>${section.judul}</h4>
-      <p>${section.isi.replace(/\n/g, "<br>")}</p>
+      <h4>${section.judul || ""}</h4>
+      <p>${(section.isi || "").replace(/\n/g, "<br>")}</p>
     </div>`;
   });
 
   html += "<h3>Contoh Soal:</h3>";
-  data.examples.forEach((e, i) => {
+  (data.examples || []).forEach((e, i) => {
     html += `<div class='question'>
-      <b>${i + 1}. ${e.soal}</b><br>
-      <i>Penyelesaian:</i> ${e.jawaban.replace(/\n/g, "<br>")}
+      <b>${i + 1}. ${e.soal || ""}</b><br>
+      <i>Penyelesaian:</i> ${(e.jawaban || "").replace(/\n/g, "<br>")}
     </div>`;
   });
 
   container.innerHTML = html;
 }
 
-
-// POST-TEST
+// POSTTEST
 async function loadPosttest() {
-  const data = await loadJSON("data/posttest.json");
+  const data = await loadJSON(POST_PATH);
   const container = document.getElementById("posttest");
-  posttestCount = data.questions.length;
+  postQuestions = getQuestionsFromData(data);
+  posttestCount = postQuestions.length;
   container.innerHTML = "<h3>Post-Test</h3>";
 
-  data.questions.forEach((q, i) => {
+  postQuestions.forEach((q, i) => {
     const div = document.createElement("div");
     div.className = "question";
     div.innerHTML = `<b>${i + 1}. ${q.question}</b><br>`;
-    q.options.forEach(opt => {
-      div.innerHTML += `<label><input type='radio' name='post${i}' value='${opt}'> ${opt}</label><br>`;
+    q.options.forEach((opt, idx) => {
+      const id = `post-${i}-${idx}`;
+      div.innerHTML += `<label for='${id}'><input id='${id}' type='radio' name='post${i}' value='${opt}'> ${opt}</label><br>`;
     });
     container.appendChild(div);
   });
-  container.innerHTML += "<button onclick='submitPosttest()'>Kirim Jawaban</button>";
+
+  const btn = document.createElement("button");
+  btn.id = "btn-submit-post";
+  btn.textContent = "Kirim Jawaban";
+  btn.addEventListener("click", submitPosttest);
+  container.appendChild(btn);
 }
 
 async function submitPosttest() {
-  const data = await loadJSON("posttest.json");
+  if (!postQuestions.length) {
+    alert("Data posttest tidak ditemukan atau belum dimuat dengan benar.");
+    return;
+  }
   posttestScore = 0;
   wrongAnswers = [];
 
-  data.questions.forEach((q, i) => {
+  postQuestions.forEach((q, i) => {
     const selected = document.querySelector(`input[name='post${i}']:checked`);
-    if (selected && selected.value === q.answer) {
+    if (selected && q.answer && selected.value === q.answer) {
       posttestScore++;
     } else {
       wrongAnswers.push({
         soal: q.question,
-        pembahasan: q.pembahasan,
-        jawabanBenar: q.answer
+        pembahasan: q.pembahasan || "Pembahasan tidak tersedia",
+        jawabanBenar: q.answer || "Tidak tersedia"
       });
     }
   });
 
-  const prePercent = (pretestScore / pretestCount) * 100;
-  const postPercent = (posttestScore / posttestCount) * 100;
+  const prePercent = pretestCount ? (pretestScore / pretestCount) * 100 : 0;
+  const postPercent = posttestCount ? (posttestScore / posttestCount) * 100 : 0;
   const peningkatan = postPercent - prePercent;
 
   alert(`Pre-Test: ${prePercent.toFixed(1)}%\nPost-Test: ${postPercent.toFixed(1)}%\nPeningkatan: ${peningkatan.toFixed(1)}%`);
@@ -121,7 +184,7 @@ async function submitPosttest() {
 
 // EVALUASI ADAPTIF
 async function evaluasi(peningkatan) {
-  const data = await loadJSON("data/evaluasi.json");
+  const data = await loadJSON(EVAL_PATH);
   const container = document.getElementById("evaluasi");
 
   if (peningkatan < 10) {
@@ -135,11 +198,15 @@ async function evaluasi(peningkatan) {
           <i>Pembahasan:</i> ${item.pembahasan}
         </div>`;
     });
-    container.innerHTML += `
-      <p><b>Silakan ulangi post-test setelah mempelajari pembahasan di atas.</b></p>
-      <button onclick='loadPosttest(); showSection("posttest")'>Ulangi Post-Test</button>`;
+    const btn = document.createElement("button");
+    btn.textContent = "Ulangi Post-Test";
+    btn.addEventListener("click", () => {
+      loadPosttest().then(() => showSection("posttest"));
+    });
+    container.appendChild(btn);
   } else {
-    const feedback = data.find(e => peningkatan >= e.min && peningkatan <= e.max);
+    const feedbackArr = data || [];
+    const feedback = (Array.isArray(feedbackArr) ? feedbackArr : (feedbackArr.items || [])).find(e => peningkatan >= (e.min || 0) && peningkatan <= (e.max || 100));
     container.innerHTML = `
       <h3>Evaluasi Hasil Belajar</h3>
       <p>Peningkatan skor: ${peningkatan.toFixed(1)}%</p>
@@ -147,11 +214,9 @@ async function evaluasi(peningkatan) {
   }
 }
 
-// Load semua saat awal
-window.onload = () => {
+window.addEventListener("DOMContentLoaded", () => {
   loadPretest();
   loadMateri();
   loadPosttest();
   showSection("pretest");
-};
-
+});
